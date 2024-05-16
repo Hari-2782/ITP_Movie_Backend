@@ -136,7 +136,83 @@ const getAllBookings = async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 }
+const deleteBooking = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Find the booking
+        const booking = await book.findById(id);
+        if (!booking) {
+            return res.status(404).json(createResponse(false, 'Booking not found', null));
+        }
+
+        // Find the user
+        const User = await user.findById(booking.userId);
+        if (!User) {
+            return res.status(404).json(createResponse(false, 'User not found', null));
+        }
+
+        // Find the screen
+        const screen = await Screen.findById(booking.screenId);
+        if (!screen) {
+            return res.status(404).json(createResponse(false, 'Screen not found', null));
+        }
+
+        // Log the booking details
+        console.log('Booking details:', booking);
+
+        // Find the movie schedule and update the not available seats
+        const movieSchedule = screen.movieSchedules.find(schedule => {
+            const scheduleDate = new Date(schedule.showDate).toISOString().split('T')[0];
+            const bookingDate = new Date(booking.showDate).toISOString().split('T')[0];
+            return (
+                schedule.movieId.toString() === booking.movieId.toString() &&
+                scheduleDate === bookingDate &&
+                schedule.showTime === booking.showTime
+            );
+        });
+
+        if (movieSchedule) {
+            console.log('Movie Schedule Found:', movieSchedule);
+
+            // Log notAvailableSeats before removal
+            console.log('Not Available Seats Before:', JSON.stringify(movieSchedule.notAvailableSeats, null, 2));
+
+            // Remove the booked seats from notAvailableSeats
+            movieSchedule.notAvailableSeats = movieSchedule.notAvailableSeats.filter(seat => 
+                !booking.seats.some(bookingSeat => 
+                    bookingSeat.row === seat.row && 
+                    bookingSeat.col === seat.col&&
+                    bookingSeat.seat_id === seat.seat_id
+                )
+            );
+
+            // Log notAvailableSeats after removal
+            console.log('Not Available Seats After:', JSON.stringify(movieSchedule.notAvailableSeats, null, 2));
+
+            await screen.save();
+        } else {
+            console.log('Movie Schedule not found for booking:', booking);
+        }
+
+        // Remove the booking from the user
+        User.bookings = User.bookings.filter(bookingId => bookingId.toString() !== id);
+        await User.save();
+
+        // Delete the booking
+        await booking.deleteOne();
+
+        res.status(200).json(createResponse(true, 'Booking deleted successfully', null));
+
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+module.exports = { deleteBooking, bookTicket, getBooking, userBooking, getAllBookings };
 
 
-module.exports = {bookTicket,getBooking,userBooking,getAllBookings};
+
+
+
 
