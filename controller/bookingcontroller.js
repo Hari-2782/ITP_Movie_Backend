@@ -10,85 +10,88 @@ const createResponse = (success, message, data) => {
     };
 };
 
-const bookTicket=async (req, res) =>{
-    try{
-        console.log("im in")
-    const { showTime, showDate, movieId, screenId, seats,totalPrice } = req.body;
-    console.log(req.body);
+const bookTicket = async (req, res) => {
+    try {
+        console.log("I'm in");
+        const { showTime, showDate, movieId, screenId, seats, totalPrice } = req.body;
+        console.log('Received request body:', req.body);
+        console.log('Received showDate:', showDate);
 
-    // You can create a function to verify payment id
+        const screen = await Screen.findById(screenId);
 
-    const screen = await Screen.findById(screenId);
-
-    if (!screen) {
-        return res.status(404).json({
-            ok: false,
-            message: "movie screen not found"
-        });
-    }
-
-
-
-    const movieSchedule = screen.movieSchedules.find(schedule => {
-        console.log(schedule);
-        let showDate1 = new Date(schedule.showDate);
-        let showDate2 = new Date(showDate);
-        if (showDate1.getDay() === showDate2.getDay() &&
-            showDate1.getMonth() === showDate2.getMonth() &&
-            showDate1.getFullYear() === showDate2.getFullYear() &&
-            schedule.showTime === showTime &&
-            schedule.movieId == movieId) {
-                console.log('im check')
-            return true;
-            
+        if (!screen) {
+            return res.status(404).json({
+                ok: false,
+                message: "Movie screen not found"
+            });
         }
-        console.log('im not check')
-        return false;
-    });
 
-    if (!movieSchedule) {
-        console.log('im check not movie schedule')
-        return res.status(404).json({
-            ok: false,
-            message: "Movie schedule not found"
+        const movieSchedule = screen.movieSchedules.find(schedule => {
+            console.log(schedule);
+            let showDate1 = new Date(schedule.showDate);
+            let showDate2 = new Date(showDate);
+            if (showDate1.getDay() === showDate2.getDay() &&
+                showDate1.getMonth() === showDate2.getMonth() &&
+                showDate1.getFullYear() === showDate2.getFullYear() &&
+                schedule.showTime === showTime &&
+                schedule.movieId.toString() === movieId.toString()) {
+                    console.log('Match found');
+                return true;
+            }
+            console.log('No match');
+            return false;
         });
-    }
 
-    const User = await user.findById(req.userId);
-    console.log('User ID:', req.userId);
+        if (!movieSchedule) {
+            console.log('No matching movie schedule found');
+            return res.status(404).json({
+                ok: false,
+                message: "Movie schedule not found"
+            });
+        }
 
-    if (!User) {
-        console.log('no user found')
-        return res.status(404).json({
-            ok: false,
-            message: "User not found"
+        const User = await user.findById(req.userId);
+        console.log('User ID:', req.userId);
+
+        if (!User) {
+            console.log('User not found');
+            return res.status(404).json({
+                ok: false,
+                message: "User not found"
+            });
+        }
+        console.log('Before creating new booking');
+        // Parse the showDate string to a Date object
+let showDateObj = new Date(showDate);
+
+// Set the time zone offset to zero
+showDateObj.setMinutes(showDateObj.getMinutes() - showDateObj.getTimezoneOffset());
+
+// Create a new booking with the adjusted showDate
+const newBooking = new book({ userId: req.userId, showTime, showDate: showDateObj, movieId, screenId, seats, totalPrice });
+
+        await newBooking.save();
+        console.log('New booking created',newBooking);
+
+        movieSchedule.notAvailableSeats.push(...seats);
+        await screen.save();
+        console.log('Screen updated with new seats');
+
+        User.bookings.push(newBooking._id);
+        await User.save();
+        console.log('User updated with new booking');
+
+        res.status(201).json({
+            ok: true,
+            message: "Booking successful",
+            bookingId: newBooking._id
         });
+
+    } catch (err) {
+        res.status(500).json({ message: err.message });
     }
-    console.log('before newBooking done');
-    const newBooking = new book({ userId: req.userId, showTime, showDate, movieId, screenId, seats,totalPrice})
-    await newBooking.save();
-    console.log('newBooking done');
-
-
-
-    movieSchedule.notAvailableSeats.push(...seats);
-    await screen.save();
-    console.log('screen saved');
-
-    User.bookings.push(newBooking._id);
-    await User.save();
-    console.log('user saved');
-    res.status(201).json({
-        ok: true,
-        message: "Booking successful",
-        bookingId: newBooking._id
-    });
-
-}catch (err) {
-    res.status(500).json({ message: err.message });
 }
 
-}
 //get paticular booking 
 const getBooking=async(req,res)=>{
 
@@ -208,7 +211,6 @@ const deleteBooking = async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 };
-
 module.exports = { deleteBooking, bookTicket, getBooking, userBooking, getAllBookings };
 
 

@@ -5,7 +5,7 @@ const voucher = require('voucher-code-generator');
 const cron = require('node-cron');
 
 // Function to send payment confirmation email
-const sendPaymentConfirmationEmail = (toEmail, userName, packageType, couponCode,expiresAt) => {
+const sendPaymentConfirmationEmail = (toEmail, userName, packageType, couponCode, expiresAt) => {
     return new Promise((resolve, reject) => {
         try {
             const transporter = nodemailer.createTransport({
@@ -17,7 +17,7 @@ const sendPaymentConfirmationEmail = (toEmail, userName, packageType, couponCode
             });
 
             let validityText = '';
-            if (packageType === 'package') {
+            if (packageType === 'package'|| 'premium') {
                 validityText = 'Thank you for purchasing a package! Your package is valid for 1 year.';
             } else if (packageType === 'offer') {
                 validityText = 'Thank you for your purchase! Your offer is valid for 24 hours.';
@@ -46,7 +46,46 @@ const sendPaymentConfirmationEmail = (toEmail, userName, packageType, couponCode
     });
 };
 
-// Function to create a new package with an expiration date for the coupon code
+// Function to send offer expired email
+const sendOfferExpiredEmail = (toEmail, userName, packageName) => {
+    return new Promise((resolve, reject) => {
+        try {
+            const transporter = nodemailer.createTransport({
+                service: 'gmail',
+                auth: {
+                    user: 'balacinema235@gmail.com',
+                    pass: 'bzfv mdhl rgic rlhu'
+                }
+            });
+
+            const mailOptions = {
+                from: 'balacinema235@gmail.com',
+                to: toEmail,
+                subject: 'Offer Expired - Bala Cinema',
+                text: `Dear ${userName},\n\n Your offer for ${packageName} has expired.\n\nRegards,\nThe Bala Cinema Team`
+            };
+
+            transporter.sendMail(mailOptions, (error, info) => {
+                if (error) {
+                    console.error('Error sending offer expired email:', error);
+                    reject(error);
+                } else {
+                    console.log('Offer expired email sent successfully');
+                    resolve(info);
+                }
+            });
+        } catch (error) {
+            console.error('Error sending offer expired email:', error);
+            reject(error);
+        }
+    });
+};
+
+// Helper function to get current UTC time
+const getCurrentUTCTime = () => {
+    return new Date(new Date().toISOString());
+};
+
 const createPackage = async (req, res) => {
     try {
         const { image, name, discount, description, type, price, expiresAt } = req.body;
@@ -61,21 +100,38 @@ const createPackage = async (req, res) => {
     }
 };
 
-// Function to delete expired coupons
 const deleteExpiredCoupons = async () => {
     try {
-        const currentDate = new Date();
-        await Package.deleteMany({ expiresAt: { $lt: currentDate } });
+        const currentDate = getCurrentUTCTime();
+        console.log('Current UTC date:', currentDate);
+        const expiredPackages = await Package.find({ expiresAt: { $lt: currentDate } });
+
+        for (const expiredPackage of expiredPackages) {
+            const users = await User.find({ offer: expiredPackage._id });
+
+            for (const user of users) {
+                await sendOfferExpiredEmail(user.email, user.name, expiredPackage.name);
+
+                // Remove the package from the user's offers
+                user.offer = user.offer.filter(offerId => offerId.toString() !== expiredPackage._id.toString());
+                await user.save();
+            }
+
+            // Delete the expired package
+            await Package.findByIdAndDelete(expiredPackage._id);
+        }
+
         console.log('Expired coupons deleted successfully');
     } catch (error) {
         console.error('Error deleting expired coupons:', error);
     }
 };
 
-// Schedule the deletion of expired coupons once a day
-cron.schedule('0 0 * * *', () => {
+cron.schedule('* * * * *', () => {
+    console.log('Cron job running at', getCurrentUTCTime());
     deleteExpiredCoupons();
 });
+
 
 // Other package-related functions
 const getAllPackages = async (req, res) => {
