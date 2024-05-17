@@ -3,7 +3,7 @@ var  movieController = require("../controller/moviecontroller");
 var  router = express.Router();
 const authTokenHandler = require('../MiddleWares/checkAuthToken');
 const adminTokenHandler = require('../MiddleWares/checkAdminToken');
-const errorHandler = require('../Middlewares/errorMiddleware');
+const errorHandler = require('../MiddleWares/errorMiddleware');
 
 
 router.post('/create', movieController.createMovie, errorHandler,adminTokenHandler);

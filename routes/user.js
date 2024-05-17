@@ -2,7 +2,7 @@ var  express = require("express");
 var  userController = require("../controller/usercontroller");
 var  router = express.Router();
 const authTokenHandler = require('../MiddleWares/checkAuthToken');
-const errorHandler = require('../Middlewares/errorMiddleware');
+const errorHandler = require('../MiddleWares/errorMiddleware');
 
 router.get('/test',userController.test );
 //logout
