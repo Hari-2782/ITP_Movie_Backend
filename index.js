@@ -10,8 +10,15 @@ require('./utils/db');
 
 // Middleware
 app.use(cors({
-    origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002','https://itp-movie-frontend-7hazflf4d-haris-projects-18861f06.vercel.app'],
+    origin: [
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'http://localhost:3002',
+        'https://itp-movie-frontend-7hazflf4d-haris-projects-18861f06.vercel.app'
+    ],
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -35,13 +42,18 @@ app.use('/booking', require('./routes/booking'));
 app.use('/offer', require('./routes/offer'));
 app.use('/payment', require('./routes/payment'));
 app.use('/feedback', require('./routes/feedback'));
-app.use('/up',require('./routes/upcoming'));
+app.use('/up', require('./routes/upcoming'));
 app.use('/', require('./routes/employee'));
 app.use('/slip', require('./routes/slip'));
 
-
 app.get('/', (req, res) => {
     res.json({ message: 'The API is working' });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ message: 'Internal Server Error' });
 });
 
 // Start the server
