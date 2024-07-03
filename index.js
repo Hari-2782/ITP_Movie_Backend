@@ -10,7 +10,7 @@ require('./utils/db');
 
 // Middleware
 app.use(cors({
-    origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002','https://itp-movie-frontend.vercel.app'],
+    origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002','https://itp-movie-frontend-7hazflf4d-haris-projects-18861f06.vercel.app'],
     credentials: true,
 }));
 app.use(cookieParser());
